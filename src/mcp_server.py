@@ -119,7 +119,11 @@ async def serve_image(request):
 
 
 # Streamable HTTP ASGI app. Verified booting on fastmcp 3.4.4.
-app = mcp.http_app(path="/mcp")
+# stateless_http + json_response: each request is self-contained (no MCP session
+# id to track) and responses are plain JSON instead of SSE streams. This is much
+# more compatible with connectors like ClickUp that don't manage MCP sessions —
+# stateful/SSE mode caused ClickUp's connect to loop and hang.
+app = mcp.http_app(path="/mcp", stateless_http=True, json_response=True)
 app.add_middleware(ApiKeyMiddleware)
 app.router.routes.append(Route("/images/{name}", serve_image, methods=["GET"]))
 
