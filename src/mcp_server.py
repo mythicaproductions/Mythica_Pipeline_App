@@ -96,9 +96,13 @@ class ApiKeyMiddleware(BaseHTTPMiddleware):
         if expected:
             provided = request.headers.get("x-api-key")
             if not provided:
-                auth = request.headers.get("authorization", "")
+                auth = request.headers.get("authorization", "").strip()
+                # Accept "Authorization: Bearer <key>" or a raw "Authorization: <key>"
+                # (clients differ on whether they prepend the Bearer scheme).
                 if auth.lower().startswith("bearer "):
-                    provided = auth[7:]
+                    provided = auth[7:].strip()
+                elif auth:
+                    provided = auth
             if provided != expected:
                 return JSONResponse({"error": "unauthorized"}, status_code=401)
         return await call_next(request)
