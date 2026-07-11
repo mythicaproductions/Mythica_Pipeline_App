@@ -11,5 +11,6 @@ COPY src/ ./src/
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
-# PORT is provided by the host at runtime; default 8000 for local docker run.
-CMD ["sh", "-c", "uvicorn mcp_server:app --app-dir src --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start via Python so it reads $PORT itself (os.environ) — avoids relying on
+# shell variable expansion, which some hosts skip (passing a literal "$PORT").
+CMD ["python", "src/mcp_server.py"]
