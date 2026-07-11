@@ -70,6 +70,7 @@ def generate_image(
     size: str = "square",
     provider: str = "openai",
     count: int = 1,
+    task_id: str = "",
 ) -> dict:
     """Generate one or more images from a text prompt.
 
@@ -81,6 +82,8 @@ def generate_image(
             like "1024x1024".
         provider: Which image generator to use (default "openai").
         count: How many images to generate, 1-6.
+        task_id: Optional. With the ClickUp storage backend, attach the image(s)
+            to this ClickUp task instead of the default library task.
     """
     count = max(1, min(int(count), _MAX_COUNT))
     px = _resolve_size(size)
@@ -88,8 +91,13 @@ def generate_image(
     full_prompt = f"{prefix}, {prompt}" if prefix else prompt
 
     gen = get_provider(provider)
+    storage = get_storage()
     urls = [
-        get_storage().save(gen.generate(full_prompt, px), content_type="image/png")
+        storage.save(
+            gen.generate(full_prompt, px),
+            content_type="image/png",
+            task_id=task_id or None,
+        )
         for _ in range(count)
     ]
 
@@ -101,6 +109,7 @@ def generate_image(
         "style": style or None,
         "size": px,
         "provider": provider,
+        "task_id": task_id or None,
         "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
     _RECENT.insert(0, record)

@@ -9,7 +9,13 @@ Backends (choose via STORAGE_BACKEND env var):
   - "server": the MCP server hosts the image itself at /images/<id>.png. Once the
     server is deployed with a public address (PUBLIC_BASE_URL), these links are
     reachable by ClickUp. Ephemeral (in-memory) — the fast path to ClickUp.
+  - "clickup": upload the image to ClickUp as a task attachment and return the
+    ClickUp-hosted URL. Durable (lives in ClickUp storage). Needs
+    CLICKUP_API_TOKEN and a task id (CLICKUP_DEFAULT_TASK_ID or per-call task_id).
   - "r2" / "s3": durable public bucket. Best long-term; not implemented yet.
+
+Backends accept optional per-call keyword opts (e.g. task_id); backends that
+don't use them ignore them.
 """
 from __future__ import annotations
 
@@ -19,14 +25,14 @@ import uuid
 
 
 class Storage:
-    def save(self, data: bytes, content_type: str = "image/png") -> str:
+    def save(self, data: bytes, content_type: str = "image/png", **opts) -> str:
         raise NotImplementedError
 
 
 class DataUriStorage(Storage):
     """Dev-only. Returns an inline data: URI. Not reachable by ClickUp."""
 
-    def save(self, data: bytes, content_type: str = "image/png") -> str:
+    def save(self, data: bytes, content_type: str = "image/png", **opts) -> str:
         b64 = base64.b64encode(data).decode("ascii")
         return f"data:{content_type};base64,{b64}"
 
@@ -80,15 +86,51 @@ class ServerStorage(Storage):
     (e.g. https://mythica-mcp.up.railway.app). Defaults to localhost for dev.
     """
 
-    def save(self, data: bytes, content_type: str = "image/png") -> str:
+    def save(self, data: bytes, content_type: str = "image/png", **opts) -> str:
         image_id = put_image(data, content_type)
         return f"{_public_base_url()}/images/{image_id}.png"
+
+
+class ClickUpStorage(Storage):
+    """Upload the image to ClickUp as a task attachment; return its URL.
+
+    The image lands in ClickUp storage permanently. Config:
+      - CLICKUP_API_TOKEN: personal API token (Settings -> Apps -> API Token).
+      - task id: per-call `task_id` opt, else CLICKUP_DEFAULT_TASK_ID.
+    """
+
+    def save(self, data: bytes, content_type: str = "image/png", **opts) -> str:
+        import requests  # lazy: only needed for this backend
+
+        token = os.environ.get("CLICKUP_API_TOKEN")
+        if not token:
+            raise RuntimeError("CLICKUP_API_TOKEN is not set in the environment")
+        task_id = opts.get("task_id") or os.environ.get("CLICKUP_DEFAULT_TASK_ID")
+        if not task_id:
+            raise RuntimeError(
+                "No ClickUp task id (set CLICKUP_DEFAULT_TASK_ID or pass task_id)"
+            )
+
+        ext = "png" if "png" in content_type else "jpg"
+        filename = f"mythica_{uuid.uuid4().hex}.{ext}"
+        resp = requests.post(
+            f"https://api.clickup.com/api/v2/task/{task_id}/attachment",
+            headers={"Authorization": token},
+            files={"attachment": (filename, data, content_type)},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        url = body.get("url") or body.get("url_w_host") or body.get("url_w_query")
+        if not url:
+            raise RuntimeError(f"ClickUp attachment response had no url: {body}")
+        return url
 
 
 class BucketStorage(Storage):
     """TODO: Cloudflare R2 / S3 for durable storage. Needs bucket + credentials."""
 
-    def save(self, data: bytes, content_type: str = "image/png") -> str:
+    def save(self, data: bytes, content_type: str = "image/png", **opts) -> str:
         raise NotImplementedError(
             "Bucket storage is not configured yet (see CLAUDE.md §9)."
         )
@@ -100,6 +142,8 @@ def get_storage() -> Storage:
         return DataUriStorage()
     if backend == "server":
         return ServerStorage()
+    if backend == "clickup":
+        return ClickUpStorage()
     if backend in ("r2", "s3", "bucket"):
         return BucketStorage()
     raise ValueError(f"Unknown STORAGE_BACKEND '{backend}'")
