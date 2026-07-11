@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x /Users/newgenesis/Documents/Mythica_Pipeline_App/SETUP.command /Users/newgenesis/Documents/Mythica_Pipeline_App/build_app.sh)",
+      "Bash(python3 *)",
+      "Bash(pip3 install *)",
+      "Skill(run)",
+      "Bash(pkill -f \"python3 src/main.py\")",
+      "Bash(echo \"PID=$!\")",
+      "Bash(screencapture -x /tmp/mythica_screenshot.png)",
+      "Bash(screencapture /tmp/mythica_screenshot.png)",
+      "Bash(screencapture -t png /tmp/mythica_screenshot.png)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(osascript -e 'tell application \"Python\" to activate')",
+      "Bash(osascript -e 'tell application \"python3\" to activate')",
+      "Bash(osascript -e 'tell application \"System Events\" to set frontmost of \\(first process whose name contains \"Python\"\\) to true')",
+      "Bash(osascript *)",
+      "Bash(python3.12 --version)",
+      "Bash(python3.12 -c \"import tkinter as tk; root=tk.Tk\\(\\); print\\('Tk version:', tk.TkVersion\\); root.destroy\\(\\)\")",
+      "Read(//Library/Frameworks/Python.framework/Versions/**)",
+      "Bash(python3.14 --version)",
+      "Bash(python3.14 -c \"import tkinter as tk; root=tk.Tk\\(\\); print\\('Tk version:', tk.TkVersion\\); root.destroy\\(\\)\")",
+      "Bash(python3.14 *)",
+      "Bash(pkill -f \"python3.14 src/main.py\")",
+      "Bash(xattr -cr \"/Users/newgenesis/Documents/Mythica_Pipeline_App/dist/Mythica Pipeline.app\")",
+      "Bash(codesign -s - --force --all-architectures --deep \"/Users/newgenesis/Documents/Mythica_Pipeline_App/dist/Mythica Pipeline.app\")",
+      "Bash(codesign -v \"/Users/newgenesis/Documents/Mythica_Pipeline_App/dist/Mythica Pipeline.app\")",
+      "Bash(open *)"
+    ]
+  }
+}
