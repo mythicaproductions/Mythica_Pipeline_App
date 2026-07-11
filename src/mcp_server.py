@@ -37,33 +37,70 @@ _RECENT: list[dict] = []
 _RECENT_MAX = 50
 
 
+# Named aspect ratios -> gpt-image sizes (explicit "WxH" also accepted).
+_ASPECTS = {
+    "square": "1024x1024",
+    "portrait": "1024x1536",
+    "tall": "1024x1536",
+    "landscape": "1536x1024",
+    "wide": "1536x1024",
+}
+_MAX_COUNT = 6
+
+
+def _resolve_size(size: str) -> str:
+    return _ASPECTS.get(size.strip().lower(), size.strip())
+
+
+def _resolve_style(style: str) -> str:
+    """A known template name expands to its saved prefix; anything else is used
+    verbatim as freeform style text (so styles can be pasted straight through)."""
+    if not style:
+        return ""
+    try:
+        return get_template(style)
+    except ValueError:
+        return style
+
+
 @mcp.tool
 def generate_image(
     prompt: str,
     style: str = "",
-    size: str = "1024x1024",
+    size: str = "square",
     provider: str = "openai",
+    count: int = 1,
 ) -> dict:
-    """Generate an image from a text prompt and return its URL + metadata.
+    """Generate one or more images from a text prompt.
 
     Args:
-        prompt: What to generate.
-        style: Optional style template name (see list_style_templates). Empty = none.
-        size: Image size, e.g. "1024x1024".
+        prompt: What to generate. You can bake style language right into this.
+        style: Optional. A saved template name (see list_style_templates) OR any
+            freeform style text pasted directly (e.g. "cinematic, moody lighting").
+        size: "square", "portrait"/"tall", "landscape"/"wide", or explicit "WxH"
+            like "1024x1024".
         provider: Which image generator to use (default "openai").
+        count: How many images to generate, 1-6.
     """
-    prefix = get_template(style) if style else ""
+    count = max(1, min(int(count), _MAX_COUNT))
+    px = _resolve_size(size)
+    prefix = _resolve_style(style)
     full_prompt = f"{prefix}, {prompt}" if prefix else prompt
 
-    image_bytes = get_provider(provider).generate(full_prompt, size)
-    url = get_storage().save(image_bytes, content_type="image/png")
+    gen = get_provider(provider)
+    urls = [
+        get_storage().save(gen.generate(full_prompt, px), content_type="image/png")
+        for _ in range(count)
+    ]
 
     record = {
-        "url": url,
+        "url": urls[0],          # first image (kept for simple inline rendering)
+        "images": urls,          # all generated image URLs
+        "count": len(urls),
         "prompt": prompt,
         "style": style or None,
+        "size": px,
         "provider": provider,
-        "size": size,
         "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
     _RECENT.insert(0, record)
