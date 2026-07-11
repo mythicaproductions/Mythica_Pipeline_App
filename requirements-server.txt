@@ -1,0 +1,8 @@
+# Server-only deps for the MCP server (slim image for Railway/Fly).
+# The desktop-only deps (customtkinter, tkinterdnd2, keyring, pyinstaller) are
+# intentionally excluded — they don't belong on a headless cloud host.
+openai>=1.0.0
+requests>=2.31.0
+Pillow>=10.0.0
+fastmcp>=3.0.0   # verified booting on 3.4.4
+uvicorn>=0.30.0
